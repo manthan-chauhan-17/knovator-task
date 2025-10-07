@@ -15,10 +15,16 @@ class PostsLoading extends PostsState {
 class PostsLoaded extends PostsState {
   final List<PostsModel> posts;
   final String activeFilter;
-  PostsLoaded(this.posts, {this.activeFilter = 'All'});
+  final Set<int> readPostIds;
+
+  PostsLoaded(
+    this.posts, {
+    this.activeFilter = 'All',
+    this.readPostIds = const {},
+  });
 
   @override
-  List<Object?> get props => [posts, activeFilter];
+  List<Object?> get props => [posts, activeFilter, readPostIds];
 }
 
 class PostsError extends PostsState {

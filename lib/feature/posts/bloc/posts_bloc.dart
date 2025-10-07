@@ -26,7 +26,8 @@ class PostsBloc extends Bloc<PostsEvent, PostsState> {
         : "All";
 
     if (cached.isNotEmpty) {
-      emit(PostsLoaded(cached));
+      final readIds = _getReadPostIds(cached);
+      emit(PostsLoaded(cached, readPostIds: readIds));
     } else {
       emit(PostsLoading());
     }
@@ -34,7 +35,10 @@ class PostsBloc extends Bloc<PostsEvent, PostsState> {
     try {
       final List<PostsModel> fresh = await Api.getPosts();
       await HiveHelper.savePosts(fresh);
-      emit(PostsLoaded(fresh, activeFilter: currentFiler));
+      final readIds = _getReadPostIds(fresh);
+      emit(
+        PostsLoaded(fresh, activeFilter: currentFiler, readPostIds: readIds),
+      );
     } catch (e) {
       if (cached.isEmpty) {
         emit(PostsError(e.toString()));
@@ -42,10 +46,24 @@ class PostsBloc extends Bloc<PostsEvent, PostsState> {
     }
   }
 
+  Set<int> _getReadPostIds(List<PostsModel> posts) {
+    return posts
+        .where((post) => HiveHelper.isPostRead(post.id ?? -1))
+        .map((post) => post.id ?? -1)
+        .toSet();
+  }
+
   void _onFilterPosts(FilterPostsEvent event, Emitter<PostsState> emit) {
     if (state is PostsLoaded) {
       final loadedState = state as PostsLoaded;
-      emit(PostsLoaded(loadedState.posts, activeFilter: event.filter));
+      final readIds = _getReadPostIds(loadedState.posts);
+      emit(
+        PostsLoaded(
+          loadedState.posts,
+          activeFilter: event.filter,
+          readPostIds: readIds,
+        ),
+      );
     }
   }
 
@@ -57,8 +75,15 @@ class PostsBloc extends Bloc<PostsEvent, PostsState> {
       final loadedState = state as PostsLoaded;
       await HiveHelper.markPostAsRead(event.postId);
 
+      // Create a new set with the newly read post ID
+      final updatedReadIds = {...loadedState.readPostIds, event.postId};
+
       emit(
-        PostsLoaded(loadedState.posts, activeFilter: loadedState.activeFilter),
+        PostsLoaded(
+          loadedState.posts,
+          activeFilter: loadedState.activeFilter,
+          readPostIds: updatedReadIds,
+        ),
       );
     }
   }

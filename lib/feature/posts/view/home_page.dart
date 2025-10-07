@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:knovator_task/feature/post_detail/view/post_detail_page.dart';
 import 'package:knovator_task/feature/posts/bloc/posts_bloc.dart';
 import 'package:knovator_task/feature/posts/widget/post_card.dart';
-import 'package:knovator_task/service/storage_service/hive_helper.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -53,7 +52,7 @@ class _HomePageState extends State<HomePage> {
 
           if (state is PostsLoaded) {
             final filteredPosts = state.posts.where((post) {
-              final isRead = HiveHelper.isPostRead(post.id ?? -1);
+              final isRead = state.readPostIds.contains(post.id ?? -1);
               if (state.activeFilter == 'Unread') return !isRead;
               if (state.activeFilter == 'Read') return isRead;
               return true;
@@ -63,37 +62,32 @@ class _HomePageState extends State<HomePage> {
               children: [
                 _buildFilter(state.activeFilter),
                 Expanded(
-                  child: RefreshIndicator(
-                    onRefresh: () async {
-                      context.read<PostsBloc>().add(GetPostsEvent());
-                    },
-                    child: ListView.separated(
-                      padding: const EdgeInsets.all(16.0),
-                      itemCount: filteredPosts.length,
-                      separatorBuilder: (context, index) =>
-                          const SizedBox(height: 12),
-                      itemBuilder: (BuildContext context, int index) {
-                        final post = filteredPosts[index];
-                        final isRead = HiveHelper.isPostRead(post.id ?? -1);
-                        return PostCard(
-                          post: post,
-                          isRead: isRead,
-                          onTap: () {
-                            context.read<PostsBloc>().add(
-                              MarkPostAsReadEvent(post.id ?? -1),
-                            );
+                  child: ListView.separated(
+                    padding: const EdgeInsets.all(16.0),
+                    itemCount: filteredPosts.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 12),
+                    itemBuilder: (BuildContext context, int index) {
+                      final post = filteredPosts[index];
+                      final isRead = state.readPostIds.contains(post.id ?? -1);
+                      return PostCard(
+                        post: post,
+                        isRead: isRead,
+                        onTap: () async {
+                          context.read<PostsBloc>().add(
+                            MarkPostAsReadEvent(post.id ?? -1),
+                          );
 
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    PostDetailScreen(id: post.id ?? -1),
-                              ),
-                            );
-                          },
-                        );
-                      },
-                    ),
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  PostDetailScreen(id: post.id ?? -1),
+                            ),
+                          );
+                        },
+                      );
+                    },
                   ),
                 ),
               ],
